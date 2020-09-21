@@ -8,29 +8,26 @@ import Logo from './components/logo/Logo';
 import LinkBar from './components/linkBar/LinkBar';
 import Rank from './components/rank/Rank';
 import FaceRecognition from './components/faceRecognition/FaceRecognition';
-import Clarifai from 'clarifai';
 
-const app = new Clarifai.App({
-  apiKey: 'a07a94f78a5a42febf38b492c96f1c30'
-});
+const initialState = {
+  input: '',
+  imageURL: '',
+  box: {},
+  route: 'signin',
+  isSignedIn: false,
+  user: {
+    id: '',
+    name: '',
+    email: '',
+    entries: 0,
+    joined: ''
+  }
+};
 
 class App extends Component {
   constructor() {
     super();
-    this.state = {
-      input: '',
-      imageURL: '',
-      box: {},
-      route: 'signin',
-      isSignedIn: false,
-      user: {
-        id: '',
-        name: '',
-        email: '',
-        entries: 0,
-        joined: ''
-      }
-    };
+    this.state = initialState;
   }
 
   loadUser = (data) => {
@@ -48,7 +45,7 @@ class App extends Component {
   onRouteChange = (route) => {
     this.setState({ route });
     if (route === 'home') { this.setState({ isSignedIn: true }) }
-    else { this.setState({ isSignedIn: false }) }
+    else if (route === 'signin') { this.setState(initialState) }
   }
 
   calculateFaceDimensions = (data) => {
@@ -76,21 +73,28 @@ class App extends Component {
 
   onButtonSubmit = () => {
     this.setState({ imageURL: this.state.input });
-    app.models.predict(Clarifai.FACE_DETECT_MODEL, this.state.input)
+    fetch('http://localhost:3000/imageurl', {
+      method: 'post',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        input: this.state.input
+      })
+    })
+      .then(response => response.json())
       .then(response => {
-        if(response)
-        {
+        if (response) {
           fetch('http://localhost:3000/image', {
             method: 'put',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               id: this.state.user.id
-            }) 
+            })
           })
-          .then(response => response.json())
-          .then(count => {
-            this.setState(Object.assign(this.state.user, {entries: count}))
-          })
+            .then(response => response.json())
+            .then(count => {
+              this.setState(Object.assign(this.state.user, { entries: count }))
+            })
+            .catch(console.log)
         }
         this.displayFaceBox(this.calculateFaceDimensions(response))
       })
@@ -105,7 +109,7 @@ class App extends Component {
         {this.state.route === 'home'
           ? <div>
             <Logo />
-            <Rank name={this.state.user.name} entries={this.state.user.entries}/>
+            <Rank name={this.state.user.name} entries={this.state.user.entries} />
             <LinkBar onTextChange={this.onTextChange} onButtonSubmit={this.onButtonSubmit} />
             <FaceRecognition imageURL={this.state.imageURL} boundingBox={this.state.box} />
           </div>
